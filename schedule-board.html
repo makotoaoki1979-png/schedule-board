@@ -667,8 +667,8 @@
       <div class="field-label">部署</div>
       <select id="profile-dept">
         <option value="">選択してください</option>
-        <option value="社長">社長</option>
         <option value="営業">営業</option>
+        <option value="総務">総務</option>
         <option value="制作">制作</option>
       </select>
     </div>
@@ -821,8 +821,8 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbxgTHRD8AVsHCtH84H1_wzj
 // GAS連携フラグ（GAS_URLが設定されていれば自動でオンライン動作）
 const USE_GAS = GAS_URL.startsWith('https://');
 
-const DEPTS = ['社長', '営業', '制作'];
-const LEFT_DEPTS  = ['社長', '営業'];  // 左列
+const DEPTS = ['営業', '総務', '制作'];
+const LEFT_DEPTS  = ['営業', '総務'];  // 左列
 const RIGHT_DEPTS = ['制作'];          // 右列
 const STORAGE_KEY  = 'schedule_data_v2';
 const PROFILE_KEY  = 'user_profile_v1';
