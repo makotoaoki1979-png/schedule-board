@@ -181,29 +181,24 @@
   }
 
   /* ===== TABLE LAYOUT for signage ===== */
-  .schedule-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .schedule-table thead {
-    display: none;
+  .schedule-list {
+    display: flex;
+    flex-direction: column;
   }
 
-  .schedule-table tbody tr {
+  .sched-row {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    padding: 0.28em 0.9em;
     border-bottom: 1px solid rgba(30,45,69,0.6);
     animation: fadeIn 0.35s ease;
   }
-  .schedule-table tbody tr:last-child { border-bottom: none; }
+  .sched-row:last-child { border-bottom: none; }
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .schedule-table td {
-    padding: 0.28em 0.9em;
-    font-size: 1em;
-    vertical-align: middle;
   }
 
   .status-dot {
@@ -216,19 +211,34 @@
   .status-in   .status-dot { background: var(--green);  box-shadow: 0 0 5px var(--green); }
   .status-direct .status-dot { background: var(--text-dim); }
 
-  .td-name { font-weight: 700; white-space: nowrap; overflow: hidden; max-width: 8em; }
-  .td-dest { color: var(--text); font-size: 1.8rem !important; white-space: nowrap; overflow: hidden; max-width: 14em; }
+  .td-name {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 0 0 4.5em;
+    min-width: 0;
+  }
+  .td-dest {
+    color: var(--text);
+    font-size: 1.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
   .td-return {
     font-family: var(--font-mono);
-    font-size: 1.8rem !important;
+    font-size: 1.1em;
     font-weight: 700;
     color: var(--accent);
     text-align: right;
     white-space: nowrap;
+    flex: 0 0 auto;
   }
-  .td-del { display: none; }
-  .schedule-table th.col-del { display: none; }
   .del-btn {
+    display: none;
     background: none;
     border: 1px solid var(--border);
     color: var(--text-dim);
@@ -239,9 +249,9 @@
     font-size: 0.7rem;
     line-height: 1;
     transition: border-color 0.2s, color 0.2s;
-    display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
   }
   .del-btn:hover { border-color: var(--red); color: var(--red); }
 
@@ -315,17 +325,17 @@
   }
 
   /* ===== ACTIVE ROW HIGHLIGHT ===== */
-  .schedule-table tbody tr.row-active {
+  .sched-row.row-active {
     background: rgba(255, 123, 26, 0.10);
   }
-  .schedule-table tbody tr.row-active .td-name {
+  .sched-row.row-active .td-name {
     color: #fff;
   }
-  .schedule-table tbody tr.row-active .td-return {
+  .sched-row.row-active .td-return {
     color: var(--accent);
     font-weight: 700;
   }
-  .schedule-table tbody tr.row-active .status-dot {
+  .sched-row.row-active .status-dot {
     box-shadow: 0 0 8px var(--accent);
     background: var(--accent);
   }
@@ -654,7 +664,6 @@
   }
   @media (max-width: 600px) {
     #signage-view { padding: 20px 16px; }
-    .schedule-table th.col-del, .schedule-table td.td-del { display: none; }
   }
 </style>
 </head>
@@ -1054,35 +1063,27 @@ function buildDeptSection(dept, data) {
     empty.textContent = '登録なし';
     section.appendChild(empty);
   } else {
-    const table = document.createElement('table');
-    table.className = 'schedule-table';
-    table.innerHTML = `<thead><tr>
-      <th class="col-name">氏名</th>
-      <th class="col-dest">行先</th>
-      <th class="col-return">帰着予定</th>
-      <th class="col-del"></th>
-    </tr></thead>`;
-    const tbody = document.createElement('tbody');
+    const list = document.createElement('div');
+    list.className = 'schedule-list';
 
     sorted.forEach(r => {
       const isDirect = r.return === '直帰';
       const isIn = ['在席','会議室','テレワーク'].includes(r.dest);
       const sc = isDirect ? 'status-direct' : isIn ? 'status-in' : 'status-out';
       const isActive = isCurrentEntry(r);
-      const tr = document.createElement('tr');
-      tr.className = sc + (isActive ? ' row-active' : '');
+      const row = document.createElement('div');
+      row.className = 'sched-row ' + sc + (isActive ? ' row-active' : '');
       const activeDot = isActive ? '<span class="row-active-bar"></span>' : '';
-      tr.innerHTML = `
-        <td class="td-name">${escHtml(truncate(r.name,4))}${activeDot}</td>
-        <td class="td-dest">${escHtml(truncate(r.dest,10))}</td>
-        <td class="td-return">${escHtml(r.return)}</td>
-        <td class="td-del"><button class="del-btn" title="削除" onclick="deleteEntry('${r.id}')">✕</button></td>
+      row.innerHTML = `
+        <span class="td-name">${escHtml(truncate(r.name,4))}${activeDot}</span>
+        <span class="td-dest">${escHtml(truncate(r.dest,10))}</span>
+        <span class="td-return">${escHtml(r.return)}</span>
+        <button class="del-btn" title="削除" onclick="deleteEntry('${r.id}')">✕</button>
       `;
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
 
-    table.appendChild(tbody);
-    section.appendChild(table);
+    section.appendChild(list);
   }
   return section;
 }
@@ -1359,7 +1360,7 @@ function autoFitFont() {
     - 24;
 
   let fontSize = 1.25;
-  const MIN = 0.85;
+  const MIN = 0.6;
   const STEP = 0.05;
 
   function applySize(size) {
@@ -1367,28 +1368,36 @@ function autoFitFont() {
     colRight.style.fontSize = size + 'rem';
   }
 
-  function fixReturnSize() {
-    document.querySelectorAll('.td-return').forEach(td => {
-      td.style.fontSize = '1.8rem';
-    });
-    document.querySelectorAll('.td-dest').forEach(td => {
-      td.style.fontSize = '1.8rem';
-    });
+  // 氏名・行先セルが省略記号で切れていないか判定（true=まだはみ出している）
+  function hasRowOverflow() {
+    const cols = [colLeft, colRight];
+    for (const col of cols) {
+      const cells = col.querySelectorAll('.td-name, .td-dest');
+      for (const cell of cells) {
+        if (cell.scrollWidth > cell.clientWidth + 1) return true;
+      }
+      // 行自体が列幅をはみ出して横スクロールを要求していないか
+      const lists = col.querySelectorAll('.schedule-list');
+      for (const t of lists) {
+        if (t.scrollWidth > col.clientWidth + 1) return true;
+      }
+    }
+    return false;
   }
 
   applySize(fontSize);
 
   while (fontSize > MIN) {
     applySize(fontSize);
-    fixReturnSize();
     const isTwoCol = window.innerWidth >= 768 || window.innerWidth > window.innerHeight;
     const maxH = isTwoCol
       ? Math.max(colLeft.scrollHeight, colRight.scrollHeight)
       : colLeft.scrollHeight + colRight.scrollHeight;
-    if (maxH <= availableH) break;
+    const overflowH = maxH > availableH;
+    const overflowW = hasRowOverflow();
+    if (!overflowH && !overflowW) break;
     fontSize = Math.round((fontSize - STEP) * 100) / 100;
   }
-  fixReturnSize();
 }
 
 // ===== 行先履歴 =====
