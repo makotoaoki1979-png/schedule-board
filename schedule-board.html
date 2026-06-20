@@ -266,6 +266,24 @@
     justify-content: space-between;
   }
 
+  /* 縦画面（スマホ縦向き）: フッターを画面下部に固定 */
+  @media (orientation: portrait) and (max-width: 767px) {
+    #signage-view {
+      padding-bottom: 64px;
+    }
+    .signage-footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      margin-top: 0;
+      padding: 10px 16px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      z-index: 50;
+    }
+  }
+
   .update-info {
     font-size: 0.72rem;
     color: var(--text-dim);
