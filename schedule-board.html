@@ -163,7 +163,7 @@
   .dept-section { margin-bottom: 8px; }
 
   .dept-label {
-    font-size: 0.7rem;
+    font-size: 0.9rem;
     font-weight: 700;
     letter-spacing: 0.2em;
     color: var(--accent);
@@ -185,21 +185,9 @@
     width: 100%;
     border-collapse: collapse;
   }
-  .schedule-table thead tr {
-    border-bottom: 1px solid var(--border);
+  .schedule-table thead {
+    display: none;
   }
-  .schedule-table th {
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-    padding: 4px 16px;
-    text-align: left;
-  }
-  .schedule-table th.col-name   { width: 8em; }
-  .schedule-table th.col-dest   { }
-  .schedule-table th.col-return { width: 6em; text-align: left; }
-  .schedule-table th.col-del    { width: 36px; }
 
   .schedule-table tbody tr {
     border-bottom: 1px solid rgba(30,45,69,0.6);
@@ -229,7 +217,7 @@
   .status-direct .status-dot { background: var(--text-dim); }
 
   .td-name { font-weight: 700; white-space: nowrap; overflow: hidden; max-width: 8em; }
-  .td-dest { color: var(--text-dim); font-size: 0.92em; white-space: nowrap; overflow: hidden; max-width: 10em; }
+  .td-dest { color: var(--text); font-size: 1.8rem !important; white-space: nowrap; overflow: hidden; max-width: 14em; }
   .td-return {
     font-family: var(--font-mono);
     font-size: 1.8rem !important;
@@ -737,10 +725,7 @@
 
   <div class="form-section">
     <div class="form-section-title">日付</div>
-    <div class="return-options" id="day-options">
-      <button class="return-opt-btn active" id="btn-today" onclick="setDayMode('today')">今日</button>
-      <button class="return-opt-btn" id="btn-tomorrow" onclick="setDayMode('tomorrow')">翌営業日</button>
-    </div>
+    <div class="return-options" id="day-options" style="grid-template-columns: repeat(4, 1fr); font-size: 0.85rem;"></div>
   </div>
 
   <div class="form-section">
@@ -890,19 +875,63 @@ function tomorrowStr() {
   return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 }
 
+// 今日から平日（土日除く）を4日分リストアップ
+// [{dateStr, label, dow}, ...]
+function getSelectableDays() {
+  const days = ['日','月','火','水','木','金','土'];
+  const result = [];
+  const d = new Date();
+  d.setHours(0,0,0,0);
+
+  // 今日（土日でも「今日」は選べる）
+  result.push({
+    dateStr: `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`,
+    label: '今日',
+    dow: days[d.getDay()]
+  });
+
+  // 翌日以降、平日のみ3件
+  const cursor = new Date(d);
+  while (result.length < 4) {
+    cursor.setDate(cursor.getDate() + 1);
+    const dow = cursor.getDay();
+    if (dow === 0 || dow === 6) continue; // 土日スキップ
+    result.push({
+      dateStr: `${cursor.getFullYear()}-${cursor.getMonth()+1}-${cursor.getDate()}`,
+      label: `${cursor.getMonth()+1}/${cursor.getDate()}`,
+      dow: days[dow]
+    });
+  }
+  return result;
+}
+
 function checkDayReset() {
   const saved = localStorage.getItem(DATE_KEY);
   const today = todayStr();
   if (saved !== today) {
     try {
       const all = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-      const keep = all.filter(r => r.dateStr === today);
+      // today より過去のデータだけ除外（today・翌営業日分は残す）
+      const todayDate = parseDateForCompare(today);
+      const keep = all.filter(r => {
+        const rd = parseDateForCompare(r.dateStr);
+        return !rd || rd.getTime() >= todayDate.getTime();
+      });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(keep));
     } catch { localStorage.setItem(STORAGE_KEY, JSON.stringify([])); }
     localStorage.setItem(DATE_KEY, today);
     // GAS側もリセット
     if (USE_GAS) gasReset(today).catch(()=>{});
   }
+}
+
+function parseDateForCompare(str) {
+  if (!str) return null;
+  const parts = String(str).split('-');
+  if (parts.length !== 3) return null;
+  const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+  return new Date(y, m - 1, d);
 }
 
 // ===== DATA (配列形式) =====
@@ -1112,7 +1141,7 @@ function openInput() {
   document.getElementById('dest-input').value = '';
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   setReturnMode('chokki');
-  setDayMode('today');
+  renderDayOptions();
   renderMyEntries(profile);
   document.getElementById('signage-view').style.display = 'none';
   document.getElementById('input-view').style.display = 'block';
@@ -1150,7 +1179,7 @@ function renderMyEntries(profile) {
   mine.forEach(r => {
     const row = document.createElement('div');
     row.className = 'my-entry-row';
-    const badge = r.dateStr === tomorrowStr() ? '<span class="tomorrow-badge">翌営</span>' : '';
+    const badge = formatDayBadge(r.dateStr);
     row.innerHTML = `
       <span class="my-entry-dest">${badge}${escHtml(r.dest)}</span>
       <span class="my-entry-ret">${escHtml(r.return)}</span>
@@ -1158,6 +1187,18 @@ function renderMyEntries(profile) {
     `;
     list.appendChild(row);
   });
+}
+
+// 今日以外の日付に「M/D(曜)」バッジを返す。今日なら空文字。
+function formatDayBadge(dateStr) {
+  const today = todayStr();
+  if (!dateStr || dateStr === today) return '';
+  const days = ['日','月','火','水','木','金','土'];
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3) return '';
+  const d = new Date(parts[0], parts[1]-1, parts[2]);
+  const label = `${parts[1]}/${parts[2]}(${days[d.getDay()]})`;
+  return `<span class="tomorrow-badge">${label}</span>`;
 }
 
 function deleteMyEntry(id) {
@@ -1197,10 +1238,19 @@ function setDest(el, val) {
   hideDestHistory();
 }
 
-function setDayMode(mode) {
-  dayMode = mode;
-  document.getElementById('btn-today').classList.toggle('active', mode === 'today');
-  document.getElementById('btn-tomorrow').classList.toggle('active', mode === 'tomorrow');
+function renderDayOptions() {
+  const days = getSelectableDays();
+  const box = document.getElementById('day-options');
+  box.innerHTML = days.map((d, i) =>
+    `<button class="return-opt-btn${i===0 ? ' active' : ''}" data-date="${d.dateStr}" onclick="setDayMode('${d.dateStr}', this)">${d.label}${d.label==='今日' ? '' : `(${d.dow})`}</button>`
+  ).join('');
+  dayMode = days[0].dateStr; // デフォルトは今日
+}
+
+function setDayMode(dateStr, el) {
+  dayMode = dateStr;
+  document.querySelectorAll('#day-options .return-opt-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
 }
 
 function setReturnMode(mode) {
@@ -1220,7 +1270,7 @@ function submitSchedule() {
 
   saveDestHistory(dest);
   const data = loadData();
-  const targetDate = dayMode === 'tomorrow' ? tomorrowStr() : todayStr();
+  const targetDate = dayMode;
 
   // 重複チェック：同じ人・同じ行先・同じ帰着・同じ日付
   const duplicate = data.find(r =>
@@ -1252,7 +1302,7 @@ function submitSchedule() {
   document.getElementById('dest-input').value = '';
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   setReturnMode('chokki');
-  setDayMode('today');
+  renderDayOptions();
   renderMyEntries(profile);
 
   showToast('登録しました');
@@ -1319,6 +1369,9 @@ function autoFitFont() {
 
   function fixReturnSize() {
     document.querySelectorAll('.td-return').forEach(td => {
+      td.style.fontSize = '1.8rem';
+    });
+    document.querySelectorAll('.td-dest').forEach(td => {
       td.style.fontSize = '1.8rem';
     });
   }
