@@ -665,6 +665,13 @@
   @media (max-width: 600px) {
     #signage-view { padding: 20px 16px; }
   }
+
+  /* 縦画面（スマホ縦向き）: 氏名・行先・帰着予定を一段階大きく */
+  @media (orientation: portrait) and (max-width: 767px) {
+    .td-name   { font-size: 1.6em; flex-basis: 4.2em; }
+    .td-dest   { font-size: 1.7em; }
+    .td-return { font-size: 1.8em; }
+  }
 </style>
 </head>
 <body>
